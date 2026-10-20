@@ -302,6 +302,14 @@
     <button data-screen="developer">Desarrollador</button>
   </div>
 
+  <h3>Actualización</h3>
+  <p class="hint" id="versionLine">Versión: …</p>
+  <div class="row">
+    <button id="updateCheck">Buscar actualización</button>
+    <button id="updateNow">Actualizar ahora</button>
+  </div>
+  <p class="hint">El proyector también se actualiza solo en cada arranque si hay un release nuevo.</p>
+
   <h3>Energía</h3>
   <div class="row">
     <button class="danger" id="power">Apagar proyector</button>
@@ -501,6 +509,39 @@
   document.addEventListener("visibilitychange", refreshStatus);
   refreshStatus();
   setInterval(refreshStatus, 4000);
+  async function loadVersion() {
+    try {
+      const v = await api("/api/version");
+      $("#versionLine").textContent = "Versión instalada: " + (v.version || "?");
+    } catch (err) {
+      $("#versionLine").textContent = "Versión: desconocida";
+    }
+  }
+
+  $("#updateCheck").addEventListener("click", async () => {
+    buzz();
+    try {
+      const r = await api("/api/update/check");
+      toast(r.message || "Sin información");
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  $("#updateNow").addEventListener("click", async () => {
+    buzz();
+    if (!confirm("¿Buscar e instalar la última versión? La app se reinicia si hay una nueva.")) return;
+    toast("Buscando actualización…");
+    try {
+      const r = await api("/api/update");
+      toast(r.message || "Listo");
+      if (r.installed) setTimeout(loadVersion, 8000);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  loadVersion();
   loadApps();
 </script>
 </body>

@@ -366,6 +366,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(self.projector.status())
             elif path == '/api/apps':
                 self._json({'apps': self.projector.apps(refresh='refresh' in query)})
+            elif path == '/api/version':
+                self._json({'version': None})
+            elif path == '/api/update/check':
+                self._json({'current': None, 'latest': None, 'updateAvailable': False,
+                            'installed': False,
+                            'message': 'La actualización solo corre desde la app del proyector.'})
             else:
                 self._json({'error': 'not found'}, HTTPStatus.NOT_FOUND)
         except AdbError as exc:
@@ -392,6 +398,10 @@ class Handler(BaseHTTPRequestHandler):
                 p.launch(data['component'])
             elif path == '/api/connect':
                 self._json({'result': p.adb.connect()})
+                return
+            elif path == '/api/update':
+                self._json({'updateAvailable': False, 'installed': False,
+                            'message': 'La actualización solo corre desde la app del proyector.'})
                 return
             else:
                 self._json({'error': 'not found'}, HTTPStatus.NOT_FOUND)

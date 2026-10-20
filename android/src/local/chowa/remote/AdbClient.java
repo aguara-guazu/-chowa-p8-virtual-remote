@@ -46,9 +46,13 @@ final class AdbClient {
     }
 
     String shell(String command) throws IOException {
+        return shell(command, timeoutMs);
+    }
+
+    String shell(String command, int ioTimeoutMs) throws IOException {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(host, port), timeoutMs);
-            socket.setSoTimeout(timeoutMs);
+            socket.setSoTimeout(ioTimeoutMs);
             socket.setTcpNoDelay(true);
             DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             OutputStream out = new BufferedOutputStream(socket.getOutputStream());

@@ -35,13 +35,17 @@ final class HttpServer {
     private final int port;
     private final byte[] indexHtml;
     private final Projector projector;
+    private final Updater updater;
+    private final String version;
     private final ExecutorService pool = Executors.newFixedThreadPool(8);
     private volatile ServerSocket serverSocket;
 
-    HttpServer(int port, byte[] indexHtml, Projector projector) {
+    HttpServer(int port, byte[] indexHtml, Projector projector, Updater updater, String version) {
         this.port = port;
         this.indexHtml = indexHtml;
         this.projector = projector;
+        this.updater = updater;
+        this.version = version;
     }
 
     void start() {
@@ -192,6 +196,10 @@ final class HttpServer {
                     case "/api/apps":
                         return Response.json(200, new JSONObject().put("apps",
                                 Projector.toArray(projector.apps(req.query.contains("refresh")))));
+                    case "/api/version":
+                        return Response.json(200, new JSONObject().put("version", version));
+                    case "/api/update/check":
+                        return Response.json(200, updater.check().toJson());
                     default:
                         return Response.error(404, "not found");
                 }
@@ -229,6 +237,8 @@ final class HttpServer {
                 case "/api/launch":
                     projector.launch(data.getString("component"));
                     break;
+                case "/api/update":
+                    return Response.json(200, updater.run().toJson());
                 default:
                     return Response.error(404, "not found");
             }

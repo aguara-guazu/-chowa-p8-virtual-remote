@@ -6,6 +6,8 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -31,6 +33,7 @@ public final class RemoteService extends Service {
     private static final String ADB_HOST = "127.0.0.1";
     private static final int ADB_PORT = 5555;
     private static final int ADB_TIMEOUT_MS = 15000;
+    private static final long BOOT_UPDATE_DELAY_MS = 20000;
 
     private HttpServer server;
     private Projector projector;
@@ -52,14 +55,42 @@ public final class RemoteService extends Service {
                 .build();
         startForeground(NOTIFICATION_ID, notification);
 
-        projector = new Projector(new AdbClient(ADB_HOST, ADB_PORT, ADB_TIMEOUT_MS));
+        AdbClient adb = new AdbClient(ADB_HOST, ADB_PORT, ADB_TIMEOUT_MS);
+        projector = new Projector(adb);
+        String version = appVersion();
+        Updater updater = new Updater(adb, version);
         try {
-            server = new HttpServer(PORT, readAsset("index.html"), projector);
+            server = new HttpServer(PORT, readAsset("index.html"), projector, updater, version);
             server.start();
         } catch (IOException e) {
             Log.e(TAG, "cannot load web UI", e);
             stopSelf();
+            return;
         }
+        autoUpdateInBackground(updater);
+    }
+
+    private String appVersion() {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return info.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            return "0";
+        }
+    }
+
+    private void autoUpdateInBackground(final Updater updater) {
+        Thread t = new Thread(() -> {
+            try {
+                Thread.sleep(BOOT_UPDATE_DELAY_MS);
+            } catch (InterruptedException e) {
+                return;
+            }
+            Updater.Result r = updater.run();
+            Log.i(TAG, "boot update: " + r.message);
+        }, "auto-update");
+        t.setDaemon(true);
+        t.start();
     }
 
     @Override

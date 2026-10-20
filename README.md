@@ -58,7 +58,18 @@ En la computadora:
 - Para compilar: JDK 17 y el Android SDK con `build-tools/35.0.0` y `platforms/android-34`.
   En macOS: `brew install openjdk@17`.
 
-## 1. Compilar el APK
+## 1. Obtener el APK
+
+Hay dos formas. Si no vas a tocar el código, usá la primera.
+
+### Desde un release (recomendado)
+
+Descargá `chowa-remote-<versión>.apk` desde la página de releases:
+<https://github.com/aguara-guazu/-chowa-p8-virtual-remote/releases/latest>
+
+Cada etiqueta `v*` publica un release con el APK ya firmado. Una vez instalada la app en el proyector, se actualiza sola desde los releases (ver [Actualizaciones](#actualizaciones)).
+
+### Compilar el APK
 
 ```bash
 ./android/build.sh
@@ -245,6 +256,36 @@ campos puede no registrarse.
 - Desde una computadora también funcionan las flechas, Enter, Escape, `h` (Inicio), `i`
   (Entrada), `+`/`-` (volumen) y espacio (reproducir/pausar).
 
+## Actualizaciones
+
+La app se actualiza sola desde los releases de GitHub. En cada arranque, unos segundos
+después de levantar el control, compara su versión con el último release
+(`https://github.com/aguara-guazu/-chowa-p8-virtual-remote/releases/latest`); si hay una
+versión más nueva, descarga el APK y lo instala usando el ADB local (`pm install -r`).
+El sistema reinicia la app sola tras instalar.
+
+También podés forzarlo desde el control web, en el menú de tres puntos → **Actualización**:
+**Buscar actualización** solo informa, **Actualizar ahora** descarga e instala.
+
+Requisitos:
+
+- El release debe estar firmado con la **misma clave** que la app instalada. Por eso hay que
+  cargar el secreto `KEYSTORE_BASE64` (ver [Clave de firma](#clave-de-firma)); si no, el APK
+  del release tiene otra firma y no puede reemplazar a la app instalada.
+- La app necesita el permiso `WRITE_EXTERNAL_STORAGE` para guardar el APK descargado. El
+  script de preparación lo concede; la app también intenta concedérselo por ADB antes de
+  descargar.
+
+Publicar una versión nueva:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+El workflow compila, firma y publica el release. Los proyectores lo toman en el siguiente
+arranque, o al tocar **Actualizar ahora**.
+
 ## Servir el control desde una computadora (opcional)
 
 `desktop/server.py` sirve la misma página y ejecuta los comandos con el `adb` de la
@@ -269,6 +310,9 @@ Requiere el ADB por red del proyector disponible (paso 3) y Python 3.10 o superi
 | POST | `/api/textkey` | `{"key": "enter\|delete"}` |
 | POST | `/api/open` | `{"screen": "settings\|keystone\|keystone4\|wifi\|bluetooth\|sound\|apps\|language\|datetime\|keyboard\|about\|developer"}` |
 | POST | `/api/launch` | `{"component": "paquete/actividad"}` |
+| GET | `/api/version` | versión instalada |
+| GET | `/api/update/check` | consulta el último release sin instalar |
+| POST | `/api/update` | descarga e instala el último release si es más nuevo |
 
 Las teclas mantenidas (`action: down`) se liberan solas a los 8 segundos si no llega el `up`.
 

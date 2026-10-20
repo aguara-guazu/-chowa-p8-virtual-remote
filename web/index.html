@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0c0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Control Chowa P8</title>
+<style>
+  :root {
+    --bg: #0c0d10;
+    --body: #17191e;
+    --body-edge: #23262d;
+    --key: #262a32;
+    --key-top: #2e333c;
+    --key-press: #4a8cff;
+    --text: #eceef3;
+    --muted: #868c99;
+    --accent: #4a8cff;
+    --danger: #ef5a50;
+    --ok: #3fb950;
+    --sheet: #15171c;
+    --line: #2a2e36;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+  }
+  button {
+    font: inherit; color: var(--text);
+    border: 0; margin: 0; padding: 0;
+    background: var(--key);
+    cursor: pointer;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    transition: background .07s, transform .07s, box-shadow .07s;
+  }
+  button.pressed { background: var(--key-press) !important; transform: scale(.95); }
+
+  .remote {
+    height: 100dvh;
+    max-width: 440px;
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 18px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    display: flex; flex-direction: column; gap: 4vh;
+  }
+
+  .top { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.bad { background: var(--danger); }
+  #statusText { flex: 1; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .more {
+    width: 44px; height: 40px; border-radius: 12px;
+    background: transparent; color: var(--muted); font-size: 22px; letter-spacing: 1px;
+    touch-action: manipulation;
+  }
+
+  .shortcuts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .shortcut { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .shortcut button {
+    width: 64px; height: 64px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--key-top);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 3px 8px rgba(0,0,0,.35);
+  }
+  .shortcut button svg { width: 26px; height: 26px; }
+  .shortcut span { font-size: 12px; color: var(--muted); }
+
+  .pad-wrap { display: grid; place-items: center; flex: 1; min-height: 0; }
+  .pad {
+    position: relative;
+    width: min(78vw, 46vh, 320px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--body);
+    box-shadow: inset 0 0 0 1px var(--body-edge), 0 10px 30px rgba(0,0,0,.45);
+    overflow: hidden;
+  }
+  .pad .arrow {
+    position: absolute;
+    background: transparent;
+    display: grid; place-items: center;
+    color: var(--muted);
+  }
+  .pad .arrow svg { width: 26px; height: 26px; }
+  .pad .arrow.pressed { background: rgba(74,140,255,.35) !important; transform: none; color: #fff; }
+  .pad .up    { left: 25%; right: 25%; top: 0; height: 32%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; }
+  .pad .down  { left: 25%; right: 25%; bottom: 0; height: 32%; border-radius: 0 0 50% 50% / 0 0 100% 100%; }
+  .pad .left  { top: 25%; bottom: 25%; left: 0; width: 32%; border-radius: 50% 0 0 50% / 50% 0 0 50%; }
+  .pad .right { top: 25%; bottom: 25%; right: 0; width: 32%; border-radius: 0 50% 50% 0 / 0 50% 50% 0; }
+  .pad .ok {
+    position: absolute; inset: 31%;
+    border-radius: 50%;
+    background: var(--key-top);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 4px 12px rgba(0,0,0,.5);
+    font-weight: 700; font-size: 17px; letter-spacing: .5px;
+  }
+
+  .rockers { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .rocker {
+    display: grid; grid-template-rows: 1fr auto 1fr;
+    border-radius: 40px;
+    background: var(--body);
+    box-shadow: inset 0 0 0 1px var(--body-edge);
+    overflow: hidden;
+    height: min(26vh, 200px);
+  }
+  .rocker button { background: transparent; font-size: 30px; font-weight: 300; color: var(--text); }
+  .rocker button.pressed { background: rgba(74,140,255,.35) !important; transform: none; }
+  .rocker .label {
+    text-align: center; font-size: 11px; font-weight: 600;
+    letter-spacing: 1.2px; color: var(--muted); padding: 2px 0;
+  }
+
+  .scrim {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    max-width: 520px; margin: 0 auto;
+    max-height: 86dvh; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--sheet);
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid var(--line);
+    padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    transform: translateY(105%); transition: transform .25s ease;
+    -webkit-user-select: text; user-select: text;
+  }
+  body.sheet-open .scrim { opacity: 1; pointer-events: auto; }
+  body.sheet-open .sheet { transform: none; }
+  .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 4px auto 6px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 4px; position: sticky; top: -8px; background: var(--sheet); z-index: 1; }
+  .sheet-head h2 { margin: 0; font-size: 16px; }
+  .close { width: 40px; height: 40px; border-radius: 50%; background: var(--key); font-size: 20px; touch-action: manipulation; }
+  .sheet h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .9px;
+    color: var(--muted); margin: 18px 0 8px; font-weight: 600;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row > button { flex: 1 1 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+  .sheet button { min-height: 46px; padding: 0 10px; border-radius: 12px; background: var(--key); touch-action: manipulation; }
+  .sheet button.danger { color: var(--danger); }
+  .sheet button.primary { background: var(--accent); color: #fff; }
+  .vol { display: flex; align-items: center; gap: 10px; }
+  .vol input { flex: 1; accent-color: var(--accent); height: 32px; }
+  .vol output { min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .text-row { display: flex; gap: 8px; }
+  .text-row input {
+    flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--key); border: 1px solid var(--line);
+    border-radius: 12px; padding: 0 12px; min-height: 46px;
+  }
+  .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+
+  #toast {
+    position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px);
+    transform: translateX(-50%);
+    background: var(--danger); color: #fff; padding: 9px 14px;
+    border-radius: 10px; font-size: 13px; max-width: calc(100% - 32px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.4); z-index: 20;
+  }
+
+  @media (max-height: 600px) {
+    .remote { gap: 2.5vh; }
+    .shortcut button { width: 54px; height: 54px; }
+    .shortcut span { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="remote">
+  <div class="top">
+    <span class="dot" id="dot"></span>
+    <span id="statusText">conectando…</span>
+    <button class="more" id="openSheet" aria-label="Más opciones">•••</button>
+  </div>
+
+  <div class="shortcuts">
+    <div class="shortcut">
+      <button data-key="input" aria-label="Entrada">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>
+      </button>
+      <span>Entrada</span>
+    </div>
+    <div class="shortcut">
+      <button data-key="home" aria-label="Inicio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/></svg>
+      </button>
+      <span>Inicio</span>
+    </div>
+    <div class="shortcut">
+      <button data-key="back" aria-label="Atrás">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>
+      </button>
+      <span>Atrás</span>
+    </div>
+  </div>
+
+  <div class="pad-wrap">
+    <div class="pad">
+      <button class="arrow up" data-key="up" aria-label="Arriba"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button>
+      <button class="arrow left" data-key="left" aria-label="Izquierda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button class="arrow right" data-key="right" aria-label="Derecha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="arrow down" data-key="down" aria-label="Abajo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="ok" data-key="ok">OK</button>
+    </div>
+  </div>
+
+  <div class="rockers">
+    <div class="rocker">
+      <button data-key="vol_up" aria-label="Subir volumen">+</button>
+      <div class="label">VOL</div>
+      <button data-key="vol_down" aria-label="Bajar volumen">−</button>
+    </div>
+    <div class="rocker">
+      <button data-focus="front" aria-label="Foco más">+</button>
+      <div class="label">FOCO</div>
+      <button data-focus="back" aria-label="Foco menos">−</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-label="Más opciones">
+  <div class="grab"></div>
+  <div class="sheet-head">
+    <h2>Más opciones</h2>
+    <button class="close" id="closeSheet" aria-label="Cerrar">✕</button>
+  </div>
+
+  <h3>Control</h3>
+  <div class="row">
+    <button data-key="menu">Menú</button>
+    <button data-key="settings">Ajustes</button>
+    <button data-key="mute">Silencio</button>
+  </div>
+
+  <h3>Volumen exacto</h3>
+  <div class="vol">
+    <input type="range" id="volume" min="0" max="100" step="1" value="0" aria-label="Volumen">
+    <output id="volumeOut">–</output>
+  </div>
+
+  <h3>Foco fino</h3>
+  <div class="row">
+    <button data-focus-step="back">Paso −</button>
+    <button data-focus-step="front">Paso +</button>
+  </div>
+
+  <h3>Imagen</h3>
+  <div class="row">
+    <button data-screen="keystone">Keystone</button>
+    <button data-screen="keystone4">Keystone 4 puntos</button>
+  </div>
+
+  <h3>Multimedia</h3>
+  <div class="row">
+    <button data-key="prev" aria-label="Anterior">⏮</button>
+    <button data-key="rewind" aria-label="Retroceder">⏪</button>
+    <button data-key="play_pause" aria-label="Reproducir o pausar">⏯</button>
+    <button data-key="forward" aria-label="Adelantar">⏩</button>
+    <button data-key="next" aria-label="Siguiente">⏭</button>
+  </div>
+
+  <h3>Escribir</h3>
+  <form class="text-row" id="textForm" autocomplete="off">
+    <input id="textInput" type="text" placeholder="Texto para el campo activo" enterkeyhint="send">
+    <button class="primary" type="submit">Enviar</button>
+  </form>
+  <div class="row" style="margin-top:8px">
+    <button data-textkey="delete">Borrar</button>
+    <button data-textkey="enter">Enter</button>
+  </div>
+  <p class="hint">Sin tildes ni ñ: Android 9 no las acepta por esta vía.</p>
+
+  <h3>Apps</h3>
+  <div class="grid" id="apps"><span class="hint">Cargando…</span></div>
+
+  <h3>Ajustes del sistema</h3>
+  <div class="grid">
+    <button data-screen="settings">Ajustes</button>
+    <button data-screen="wifi">Wi-Fi</button>
+    <button data-screen="bluetooth">Bluetooth</button>
+    <button data-screen="sound">Sonido</button>
+    <button data-screen="apps">Apps</button>
+    <button data-screen="language">Idioma</button>
+    <button data-screen="datetime">Fecha y hora</button>
+    <button data-screen="keyboard">Teclado</button>
+    <button data-screen="about">Acerca de</button>
+    <button data-screen="developer">Desarrollador</button>
+  </div>
+
+  <h3>Energía</h3>
+  <div class="row">
+    <button class="danger" id="power">Apagar proyector</button>
+  </div>
+  <p class="hint">Apagarlo corta la conexión. Para volver a usar el control hay que encenderlo con el botón físico.</p>
+</div>
+
+<div id="toast" hidden></div>
+
+<script>
+  const $ = (sel) => document.querySelector(sel);
+  let toastTimer = null;
+
+  function toast(message) {
+    const el = $("#toast");
+    el.textContent = message;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 3500);
+  }
+
+  function buzz() {
+    if (navigator.vibrate) navigator.vibrate(12);
+  }
+
+  async function api(path, body) {
+    const opts = body === undefined ? {} : {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    };
+    const res = await fetch(path, opts);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+    return data;
+  }
+
+  function post(path, body) {
+    return api(path, body).catch((err) => toast(err.message));
+  }
+
+  function bindHold(button, send) {
+    let queue = Promise.resolve();
+    let held = false;
+    const enqueue = (action) => {
+      queue = queue.then(() => send(action)).catch((err) => toast(err.message));
+    };
+    const start = (ev) => {
+      if (ev && ev.cancelable) ev.preventDefault();
+      if (held) return;
+      held = true;
+      buzz();
+      button.classList.add("pressed");
+      if (ev && ev.pointerId !== undefined && button.setPointerCapture) {
+        try { button.setPointerCapture(ev.pointerId); } catch (e) {}
+      }
+      enqueue("down");
+    };
+    const stop = () => {
+      if (!held) return;
+      held = false;
+      button.classList.remove("pressed");
+      enqueue("up");
+    };
+    button.addEventListener("pointerdown", start);
+    button.addEventListener("pointerup", stop);
+    button.addEventListener("pointercancel", stop);
+    button.addEventListener("lostpointercapture", stop);
+    button.addEventListener("contextmenu", (ev) => ev.preventDefault());
+    return { start, stop };
+  }
+
+  const keyButtons = {};
+  document.querySelectorAll("[data-key]").forEach((btn) => {
+    const key = btn.dataset.key;
+    const handle = bindHold(btn, (action) => api("/api/key", { key, action }));
+    if (!keyButtons[key]) keyButtons[key] = handle;
+  });
+
+  document.querySelectorAll("[data-focus]").forEach((btn) => {
+    const direction = btn.dataset.focus;
+    bindHold(btn, (action) => api("/api/focus", { direction, action }));
+  });
+
+  document.querySelectorAll("[data-focus-step]").forEach((btn) => {
+    btn.addEventListener("click", () => { buzz(); post("/api/focus", { direction: btn.dataset.focusStep, action: "tap" }); });
+  });
+
+  document.querySelectorAll("[data-screen]").forEach((btn) => {
+    btn.addEventListener("click", () => { buzz(); post("/api/open", { screen: btn.dataset.screen }); closeSheet(); });
+  });
+
+  document.querySelectorAll("[data-textkey]").forEach((btn) => {
+    btn.addEventListener("click", () => { buzz(); post("/api/textkey", { key: btn.dataset.textkey }); });
+  });
+
+  $("#textForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const input = $("#textInput");
+    if (!input.value) return;
+    await post("/api/text", { text: input.value });
+    input.value = "";
+  });
+
+  function openSheet() { document.body.classList.add("sheet-open"); }
+  function closeSheet() {
+    document.body.classList.remove("sheet-open");
+    if (document.activeElement) document.activeElement.blur();
+  }
+  $("#openSheet").addEventListener("click", openSheet);
+  $("#closeSheet").addEventListener("click", closeSheet);
+  $("#scrim").addEventListener("click", closeSheet);
+
+  const volume = $("#volume");
+  const volumeOut = $("#volumeOut");
+  let volumeDragging = false;
+  let volumeTimer = null;
+  volume.addEventListener("input", () => {
+    volumeDragging = true;
+    volumeOut.textContent = volume.value;
+    clearTimeout(volumeTimer);
+    volumeTimer = setTimeout(() => post("/api/volume", { level: Number(volume.value) }), 120);
+  });
+  volume.addEventListener("change", () => {
+    setTimeout(() => { volumeDragging = false; }, 1500);
+  });
+
+  $("#power").addEventListener("click", () => {
+    if (confirm("¿Apagar el proyector? Se va a cortar la conexión.")) {
+      post("/api/key", { key: "power", action: "tap" });
+    }
+  });
+
+  async function loadApps() {
+    const box = $("#apps");
+    try {
+      const data = await api("/api/apps");
+      box.innerHTML = "";
+      data.apps.forEach((app) => {
+        const btn = document.createElement("button");
+        btn.textContent = app.name;
+        btn.title = app.package;
+        btn.addEventListener("click", () => { buzz(); post("/api/launch", { component: app.component }); closeSheet(); });
+        box.appendChild(btn);
+      });
+    } catch (err) {
+      box.innerHTML = "";
+      const msg = document.createElement("span");
+      msg.className = "hint";
+      msg.textContent = "No se pudieron cargar: " + err.message;
+      box.appendChild(msg);
+    }
+  }
+
+  async function refreshStatus() {
+    if (document.hidden) return;
+    const dot = $("#dot");
+    const text = $("#statusText");
+    try {
+      const s = await api("/api/status");
+      const ok = s.state === "device";
+      dot.className = "dot " + (ok ? "ok" : "bad");
+      text.textContent = ok ? (s.app || "conectado") : "sin conexión";
+      if (ok && s.volume && !volumeDragging) {
+        volume.min = s.volume.min;
+        volume.max = s.volume.max;
+        volume.value = s.volume.level;
+        volumeOut.textContent = s.volume.level;
+      }
+    } catch (err) {
+      dot.className = "dot bad";
+      text.textContent = "servidor caído";
+    }
+  }
+
+  const keyboardMap = {
+    ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+    Enter: "ok", Escape: "back", Backspace: "back", h: "home", i: "input",
+    "+": "vol_up", "=": "vol_up", "-": "vol_down", " ": "play_pause",
+  };
+  document.addEventListener("keydown", (ev) => {
+    if (ev.target.closest("input, textarea") || ev.metaKey || ev.ctrlKey) return;
+    if (document.body.classList.contains("sheet-open")) {
+      if (ev.key === "Escape") closeSheet();
+      return;
+    }
+    const key = keyboardMap[ev.key];
+    if (!key || ev.repeat) return;
+    ev.preventDefault();
+    keyButtons[key].start(ev);
+  });
+  document.addEventListener("keyup", (ev) => {
+    const key = keyboardMap[ev.key];
+    if (key) keyButtons[key].stop();
+  });
+
+  document.addEventListener("visibilitychange", refreshStatus);
+  refreshStatus();
+  setInterval(refreshStatus, 4000);
+  loadApps();
+</script>
+</body>
+</html>

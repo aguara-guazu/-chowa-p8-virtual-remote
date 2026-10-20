@@ -1,0 +1,7 @@
+# Starts adbd on TCP after boot without configuring the USB gadget.
+# The USB gadget (sys.usb.config=adb) brought up during early boot prevents the
+# internal AIC8800 Wi-Fi/BT module on Mstar-ehci-1 from initializing.
+# Install to /system/etc/init/adbwifi.rc (context u:object_r:system_file:s0).
+on property:sys.boot_completed=1
+    setprop service.adb.tcp.port 5555
+    start adbd

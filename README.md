@@ -68,6 +68,45 @@ Genera `android/build/chowa-remote.apk`. Se compila con las herramientas de lín
 del SDK, sin Gradle. Firma con `~/.android/debug.keystore` (la crea si no existe). Variables
 para cambiar rutas o versiones: ver el encabezado de `android/build.sh`.
 
+### Compilación automática en GitHub Actions
+
+`.github/workflows/build-apk.yml` compila el APK con el mismo `android/build.sh`:
+
+- **En cada push a `main`, pull request o ejecución manual:** el APK queda como artefacto
+  `chowa-remote-<versión>` en la página de la ejecución (pestaña **Actions**). La versión es
+  `0.0.<número de ejecución>`.
+- **Al subir una etiqueta `v*`:** además publica una release con el APK adjunto.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+El `versionCode` es el número de ejecución del workflow, así que cada compilación nueva
+puede instalarse encima de la anterior con `adb install -r`.
+
+#### Clave de firma
+
+Android solo permite actualizar una app instalada con un APK firmado con la misma clave. Sin
+configuración, el workflow firma con una clave nueva en cada ejecución: ese APK se instala
+bien en un proyector limpio, pero para reemplazar una versión anterior hay que desinstalarla
+primero (`adb uninstall local.chowa.remote`).
+
+Para que las compilaciones de GitHub usen siempre la misma clave, cárgala como secreto del
+repositorio. Para reutilizar la clave de depuración de tu computadora, la misma con la que
+`android/build.sh` firma localmente:
+
+```bash
+base64 -i ~/.android/debug.keystore | gh secret set KEYSTORE_BASE64   # macOS
+base64 -w0 ~/.android/debug.keystore | gh secret set KEYSTORE_BASE64  # Linux
+```
+
+La clave de depuración usa los valores estándar de Android (contraseña `android`, alias
+`androiddebugkey`), que son los valores por defecto del script, así que no hacen falta más
+secretos. Si usas una clave propia, carga también `KEYSTORE_PASSWORD`, `KEY_ALIAS` y
+`KEY_PASSWORD` con `gh secret set <NOMBRE>`. El resumen de cada ejecución muestra la huella
+SHA-256 del certificado usado para firmar.
+
 ## 2. Preparar el proyector
 
 Todo se hace con el mouse conectado al proyector.
@@ -270,6 +309,7 @@ no volver al problema del Wi-Fi.
 android/            app de Android (servidor HTTP, cliente ADB, servicio de arranque)
   build.sh          compilación y firma del APK sin Gradle
 web/index.html      interfaz del control (se empaqueta en el APK)
+.github/workflows/build-apk.yml  compilación automática y releases
 desktop/server.py   alternativa para servir el control desde una computadora
 projector/adbwifi.rc  archivo de arranque para /system/etc/init
 scripts/setup-projector.sh  preparación del proyector por ADB

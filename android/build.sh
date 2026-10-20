@@ -6,7 +6,11 @@
 #   BUILD_TOOLS_VERSION   SDK build-tools version (default: 35.0.0)
 #   PLATFORM              SDK platform providing android.jar (default: android-34)
 #   JAVA_HOME             JDK 17 root (default: /opt/homebrew/opt/openjdk@17 if present)
-#   KEYSTORE              signing keystore (default: $HOME/.android/debug.keystore)
+#   KEYSTORE              signing keystore (default: $HOME/.android/debug.keystore,
+#                         created with the standard debug credentials if missing)
+#   KEYSTORE_PASSWORD     keystore password (default: android)
+#   KEY_ALIAS             key alias (default: androiddebugkey)
+#   KEY_PASSWORD          key password (default: KEYSTORE_PASSWORD)
 #   VERSION_CODE / VERSION_NAME
 set -euo pipefail
 
@@ -21,6 +25,9 @@ if [ -n "${JAVA_HOME:-}" ]; then
     export PATH="$JAVA_HOME/bin:$PATH"
 fi
 KEYSTORE="${KEYSTORE:-$HOME/.android/debug.keystore}"
+export KEYSTORE_PASSWORD="${KEYSTORE_PASSWORD:-android}"
+KEY_ALIAS="${KEY_ALIAS:-androiddebugkey}"
+export KEY_PASSWORD="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
 OUT="$ROOT/build"
 
 for tool in "$BUILD_TOOLS/aapt2" "$BUILD_TOOLS/d8" "$BUILD_TOOLS/zipalign" "$BUILD_TOOLS/apksigner" "$ANDROID_JAR"; do
@@ -57,11 +64,12 @@ javac --release 8 -classpath "$ANDROID_JAR" -Xlint:-options -d "$OUT/classes" @"
 
 if [ ! -f "$KEYSTORE" ]; then
     mkdir -p "$(dirname "$KEYSTORE")"
-    keytool -genkeypair -keystore "$KEYSTORE" -storepass android -keypass android \
-        -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+    keytool -genkeypair -keystore "$KEYSTORE" -storepass:env KEYSTORE_PASSWORD -keypass:env KEY_PASSWORD \
+        -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
         -dname "CN=Android Debug,O=Android,C=US"
 fi
-"$BUILD_TOOLS/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:android \
-    --ks-key-alias androiddebugkey --out "$OUT/chowa-remote.apk" "$OUT/aligned.apk"
+"$BUILD_TOOLS/apksigner" sign --ks "$KEYSTORE" --ks-pass env:KEYSTORE_PASSWORD \
+    --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD \
+    --out "$OUT/chowa-remote.apk" "$OUT/aligned.apk"
 
 echo "$OUT/chowa-remote.apk"
